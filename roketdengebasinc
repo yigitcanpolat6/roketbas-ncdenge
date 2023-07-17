@@ -1,0 +1,99 @@
+#include "I2Cdev.h" //I2C kütüphanesi
+#include "MPU6050.h" //Mpu6050 kütüphanesi
+#include "Wire.h"
+#include <LiquidCrystal_I2C.h>
+#include <SFE_BMP180.h>
+MPU6050 accelgyro; // Mpu6050 sensör tanımlama
+int16_t ax, ay, az; //ivme tanımlama
+int16_t gx, gy, gz; //gyro tanımlama
+
+LiquidCrystal_I2C lcdekranim(0x27,16,2);
+SFE_BMP180 bmp180; 
+
+int buzzer = 2;
+void setup() {
+  pinMode(buzzer,OUTPUT);
+  Serial.begin(9600);
+  lcdekranim.init();
+  lcdekranim.backlight();
+  
+  bool basarili = bmp180.begin();
+  if (basarili) {
+    Serial.println("BMP180 başlatıldı.");
+    lcdekranim.setCursor(0,0);
+    lcdekranim.print("BMP180");
+    lcdekranim.setCursor(0,1);
+    lcdekranim.print("baslatildi.");
+    delay(1000);
+    Serial.println("I2C cihazlar baslatiliyor...");
+    lcdekranim.clear();
+    lcdekranim.setCursor(0,0);
+    lcdekranim.print("I2C cihazlar");
+    lcdekranim.setCursor(0,1);
+    lcdekranim.print("baslatiliyor...");
+    delay(1000);
+    accelgyro.initialize();
+  }
+}
+void loop() {
+  accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz); // ivme ve gyro değerlerini okuma
+
+
+  char durum;  // Sensörden okunan durum
+  double T, P;  // Sıcaklık ve basınç değişkenleri
+  bool basarili = false;  // Sensör çalışıyor mu bilgisi değişkeni
+  durum = bmp180.startTemperature();
+  if (durum != 0) {
+    delay(1000);
+    durum = bmp180.getTemperature(T);
+    if (durum != 0) {
+      durum = bmp180.startPressure(3);
+      if (durum != 0) {
+        delay(durum);
+        durum = bmp180.getPressure(P, T);
+        if (durum != 0) {
+          lcdekranim.clear();
+          Serial.print("Basınc: ");
+          Serial.print(P);
+          Serial.println(" hPa");
+          Serial.print("Sıcaklık: ");
+          Serial.print(T);
+          Serial.println(" C");
+          
+          lcdekranim.setCursor(0,0);
+          lcdekranim.print("Basinc:");
+          lcdekranim.setCursor(7,0);
+          lcdekranim.print(P);
+          lcdekranim.setCursor(13,0);
+          lcdekranim.print("hPa");
+          lcdekranim.setCursor(0,1);
+          lcdekranim.print("Sicaklik:");
+          lcdekranim.setCursor(9,1);
+          lcdekranim.print(T);
+          lcdekranim.setCursor(15,1);
+          lcdekranim.print("C");
+          delay(800);
+
+          
+          if(ax>-2000 && ax<-1000 && ay>-500 && ay<0 && az>17000 && az<19000 && gx>-700 && gx<-500 && gy>-300 && gy<-100 && gz>-300 && gz<-100 )
+          {
+          Serial.println("Roket Dengede");
+          lcdekranim.clear();
+          lcdekranim.print("Roket Dengede");
+          digitalWrite(buzzer, LOW);
+          } 
+          else 
+          {
+          Serial.println("Roket Dengede Değil.");
+          lcdekranim.clear();
+          lcdekranim.setCursor(0,0);
+          lcdekranim.print("Roket Dengede");
+          lcdekranim.setCursor(0,1);
+          lcdekranim.print("Degil");
+          digitalWrite(buzzer, HIGH);
+          }
+        }
+      }
+    }
+  }
+}
